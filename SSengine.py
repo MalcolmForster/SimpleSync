@@ -17,11 +17,19 @@ def sync(dir, bUpDir,compType):
 
     # Creates list of all folders in both directory and backupdirectory
 
-    for folders, childfolders, files in os.walk(dir):
+
+    toBackUpFolders = os.walk(dir)
+    theBackUpFolders = os.walk(bUpDir)
+
+
+    # print(toBackUpFolders.__sizeof__()) 
+    # print(theBackUpFolders.__sizeof__()) 
+
+    for folders, childfolders, files in toBackUpFolders:
         toBUp.append(folders.removeprefix(dir))
 
 
-    for folders, childfolders, files in os.walk(bUpDir):
+    for folders, childfolders, files in theBackUpFolders:
         if folders.__contains__("_OBS") == False:
             curBUpFiles.append(folders.removeprefix(bUpDir))
 
@@ -64,14 +72,16 @@ def sync(dir, bUpDir,compType):
 
     if toBUp == curBUpFiles:
         print("Folder Structure is the same")
+        
     else:
-        print("Difference in file structure detected")
+        print("Difference in file structure detected")        
 
         # Will check if all folders in directory exist in backupdirectory and copy new ones over
 
         for folder in toBUp:
             if (curBUpFiles.__contains__(folder) == False):# and folder != "\_OBS"):
                 os.mkdir(bUpDir + folder)
+                foldersChanged = True                
                 print("Added \"" + folder +"\" to backup")
 
         # Will check if all folders backupdirectory has any extra folders and moving them to _OBS folder
@@ -82,7 +92,7 @@ def sync(dir, bUpDir,compType):
             #Adding all parent folders to the folder2Move array so program doesnt try to move children afterwards        
 
             if toBUp.__contains__(folder) == False:
-
+                foldersChanged = True
                 # Add parent folders to the folders2Move array
                 parentFound = False
                 for parent in folders2Move:                
@@ -93,8 +103,7 @@ def sync(dir, bUpDir,compType):
                     folders2Move.append(folder)   
                         
                 #Adds date to file names
-                contents = os.listdir(bUpDir + folder)
-                
+                contents = os.listdir(bUpDir + folder)                
                 for file in contents:
                     fileLoc = bUpDir + folder + "\\" + file
                     
@@ -113,10 +122,12 @@ def sync(dir, bUpDir,compType):
                 
         for parent in folders2Move:
             try:
+                foldersChanged = True
                 shutil.move(bUpDir + "\\" +  parent, bUpDir + "\\_OBS" +  parent)
             except shutil.Error:
                 print("Shutil Error with moving folders to _OBS that were deleted")
                 #shutilErr(bUpDir + "\\" +  parent, bUpDir + "\\_OBS" +  parent)
+        #theBackUpFolders = os.walk(bUpDir)
 
     #_______________________SECTION TO COPY COMPLETELY NEW FILES OVER________________________________________
 
@@ -124,22 +135,38 @@ def sync(dir, bUpDir,compType):
 
     toBUp = []
     curBUpFiles = []
+    
+    # Run md5 hashing on editable files
+    def md5sum(file):
+        m = hashlib.md5()
+        b = bytearray(128*1024)
+        mv = memoryview(b)
+        with open(file, 'rb', buffering=0) as f:
+            while n:=f.readinto(mv):
+                m.update(mv[:n])
+        return m.hexdigest()
 
     # Creates list of all folders in both directory and backupdirectory
-    for folders in os.walk(dir):
-        
+
+    toBackUpFolders = os.walk(dir)        
+    theBackUpFolders = os.walk(bUpDir)
+
+    for folders in toBackUpFolders:        
         for file in folders[2]:
             if file.__contains__('md5hashMap.txt') == False:
                 fileLoc = folders[0] + "\\" + file
                 toBUp.append(fileLoc.removeprefix(dir))
 
-    for folders in os.walk(bUpDir):
-        
-        if folders[0].__contains__("_OBS") == False:
+    for folders in theBackUpFolders:            
+        if folders[0].__contains__("_OBS") == False:            
             for file in folders[2]:
                 if file.__contains__('md5hashMap.txt') == False:
                     fileLoc = folders[0] + "\\" + file
                     curBUpFiles.append(fileLoc.removeprefix(bUpDir))
+
+    # print(toBackUpFolders.__sizeof__()) 
+    # print(theBackUpFolders.__sizeof__())
+    # print(list(set(toBUp) - set(curBUpFiles))) #should probably use this method of finding difference in list sets
 
     if toBUp == curBUpFiles:
         print("File naming is the same")
@@ -148,7 +175,7 @@ def sync(dir, bUpDir,compType):
         addToHashTable = False
         # if a file is deleted in working folder move to _OBS
         if compType == 'md5 hashMap' and os.path.exists(bUpDir+"\\md5hashMap.txt"):
-            bUpMap = open(bUpDir+"\\md5hashMap.txt",'w')
+            bUpMap = open(bUpDir+"\\md5hashMap.txt",'a')
             addToHashTable = True
         for file in toBUp:
             if curBUpFiles.__contains__(file) == False:            
@@ -161,12 +188,28 @@ def sync(dir, bUpDir,compType):
         if addToHashTable:
             bUpMap.close()
 
+        # if addToHashTable and len(curBUpFiles) > 0:
+        #     with open(bUpDir+"\\md5hashMap.txt", "r") as f:
+        #         lines = f.readlines()
+        #     with open(bUpDir+"\\md5hashMap.txt", "w") as f:
+        #         for line in lines:
+        #             addLine = True
+        #             for file in curBUpFiles:
+        #                 if toBUp.__contains__(file) == False and line.__contains__(file+"|*|"):
+        #                     print("Removed "+ file+" from hashmap")
+        #                     addLine = False
+        #                     break
+        #             if addLine:
+        #                 f.write(line)
         # Will check if all folders backupdirectory has any extra folders and moving them to _OBS folder
-        
-        for file in curBUpFiles:
-            if toBUp.__contains__(file) == False:
-                moveToObs(file)  
 
+        # print(list(set(toBUp) - set(curBUpFiles)))
+
+        for file in curBUpFiles:                    
+            if toBUp.__contains__(file) == False:
+                print(file + " to be moved to obs")
+                moveToObs(file)
+        theBackUpFolders = os.walk(bUpDir)
 
 
     #_______________________SECTION TO CHECK FILES ARE THE SAME AND COPY NEW FILES OVER________________________________________
@@ -201,18 +244,6 @@ def sync(dir, bUpDir,compType):
                         fileLoc = folders[0] + "\\" + file
                         curBUpFiles.append(fileLoc.removeprefix(bUpDir))
 
-
-    # Run md5 hashing on editable files
-    def md5sum(file):
-        m = hashlib.md5()
-        b = bytearray(128*1024)
-        mv = memoryview(b)
-        with open(file, 'rb', buffering=0) as f:
-            while n:=f.readinto(mv):
-                m.update(mv[:n])
-        return m.hexdigest()
-
-
     def binaryComp(file1, file2):
         file1Len = len(open(file1,"rb").read())
         file2Len = len(open(file2,"rb").read())
@@ -237,8 +268,8 @@ def sync(dir, bUpDir,compType):
 
     # for i in range(len(curBUpFiles)):
 
-    def createHashMap():
-        print("hashing selected")
+    # print(len(toBUp))
+    # print(len(curBUpFiles))
 
     if toBUp == curBUpFiles:
         toUpdate = []
@@ -251,7 +282,6 @@ def sync(dir, bUpDir,compType):
                 if binaryComp(dir+toBUp[i],bUpDir+curBUpFiles[i]):
                     toUpdate.append(toBUp[i])
                 print(percentage +"% checked, " + str(len(toUpdate))+ " files to be updated.", end = '    \r')
-
 
         elif compType == 'md5 hashing':
             for i in range(len(toBUp)):
@@ -267,6 +297,7 @@ def sync(dir, bUpDir,compType):
         elif compType == 'md5 hashMap':
             if os.path.exists(dir+"\\md5hashMap.txt"):
                 os.remove(dir+"\\md5hashMap.txt")
+            
             toBUpMap = open(dir+"\\md5hashMap.txt",'w')
             for i in range(len(toBUp)):
                 percentage = str(round((i/len(toBUp)) * 100, 1))
@@ -275,11 +306,11 @@ def sync(dir, bUpDir,compType):
                 toBUpMap.write(toBUp[i]+"|*|"+toBHash+"\n")
             toBUpMap.close()
 
-            if os.path.exists(bUpDir+"\\md5hashMap.txt"):
+            if os.path.exists(bUpDir+"\\md5hashMap.txt"):                
                 bUpMap = open(bUpDir+"\\md5hashMap.txt")
                 content=bUpMap.read()
                 bUpMap.close()
-            else:
+            else:                
                 bUpMap = open(bUpDir+"\\md5hashMap.txt",'w')
                 for i in range(len(toBUp)):
                     percentage = str(round((i/len(toBUp)) * 100, 1))
@@ -300,9 +331,11 @@ def sync(dir, bUpDir,compType):
 
                 for file in toBUpMap:
                     fileFound = False
+                    count = 0
                     for bUpFile in bUpMap:
                         if bUpFile == file:
                             fileFound = True
+                            count += 1
                             break
                     if fileFound == False:
                         # print(file.split("|*|")[0])
@@ -312,11 +345,13 @@ def sync(dir, bUpDir,compType):
 
         if len(toUpdate) > 0:
             for file in toUpdate:
+                #print(file + " to be moved to obs and new version copied")
                 moveToObs(file)
                 shutil.copy(dir + file, bUpDir + file)
                 print("Updated " + file)
             print("All files updated")
             if compType == 'md5 hashMap':
+                print("Hashmap copied")
                 os.remove(bUpDir+"\\md5hashMap.txt")
                 shutil.copy(dir+"\\md5hashMap.txt", bUpDir+"\\md5hashMap.txt")
         else:
