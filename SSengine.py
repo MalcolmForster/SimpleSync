@@ -5,7 +5,7 @@ import shutil
 import datetime
 import hashlib
 
-def sync(dir, bUpDir):
+def sync(dir, bUpDir,compType):
 
     if(os.path.exists(bUpDir + "\\_OBS\\") == False):
         os.mkdir(bUpDir + "\\_OBS\\")
@@ -55,7 +55,7 @@ def sync(dir, bUpDir):
     def moveToObs(file):
         obsPathChk(file)
         shutil.move(bUpDir + file, bUpDir + "\\_OBS" + file + dateMethod())
-        #print("Moved \"" + file +"\" to _OBS")
+        print("Moved \"" + file +"\" to _OBS")
 
 
     #_______________________SECTION TO REMOVE DELETED FOLDERS__________________________________________
@@ -127,27 +127,39 @@ def sync(dir, bUpDir):
 
     # Creates list of all folders in both directory and backupdirectory
     for folders in os.walk(dir):
+        
         for file in folders[2]:
-            fileLoc = folders[0] + "\\" + file
-            toBUp.append(fileLoc.removeprefix(dir))
+            if file.__contains__('md5hashMap.txt') == False:
+                fileLoc = folders[0] + "\\" + file
+                toBUp.append(fileLoc.removeprefix(dir))
 
     for folders in os.walk(bUpDir):
+        
         if folders[0].__contains__("_OBS") == False:
             for file in folders[2]:
-                fileLoc = folders[0] + "\\" + file
-                curBUpFiles.append(fileLoc.removeprefix(bUpDir))
+                if file.__contains__('md5hashMap.txt') == False:
+                    fileLoc = folders[0] + "\\" + file
+                    curBUpFiles.append(fileLoc.removeprefix(bUpDir))
 
     if toBUp == curBUpFiles:
         print("File naming is the same")
     else:
         print("Difference in files detected")
-
+        addToHashTable = False
         # if a file is deleted in working folder move to _OBS
-
+        if compType == 'md5 hashMap' and os.path.exists(bUpDir+"\\md5hashMap.txt"):
+            bUpMap = open(bUpDir+"\\md5hashMap.txt",'w')
+            addToHashTable = True
         for file in toBUp:
             if curBUpFiles.__contains__(file) == False:            
                 shutil.copy(dir + file, bUpDir + file)
+                if addToHashTable:
+                    curHash = md5sum(dir + file)
+                    bUpMap.write(file+"|*|"+curHash+"\n")
                 print("Added \"" + file +"\" to backup")
+
+        if addToHashTable:
+            bUpMap.close()
 
         # Will check if all folders backupdirectory has any extra folders and moving them to _OBS folder
         
@@ -168,24 +180,26 @@ def sync(dir, bUpDir):
     # Creates list of all folders in both directory and backupdirectory
     for folders in os.walk(dir):
         for file in folders[2]:
-            edit = True
-            for ext in isntEditable:
-                if file.endswith(ext):
-                    edit = False
-            if edit == True:
-                fileLoc = folders[0] + "\\" + file
-                toBUp.append(fileLoc.removeprefix(dir))
-
-    for folders in os.walk(bUpDir):
-        if folders[0].__contains__("_OBS") == False:
-            for file in folders[2]:
+            if file.__contains__('md5hashMap.txt') == False:
                 edit = True
-                for ext in isntEditable:               
+                for ext in isntEditable:
                     if file.endswith(ext):
                         edit = False
                 if edit == True:
                     fileLoc = folders[0] + "\\" + file
-                    curBUpFiles.append(fileLoc.removeprefix(bUpDir))
+                    toBUp.append(fileLoc.removeprefix(dir))
+
+    for folders in os.walk(bUpDir):
+        if folders[0].__contains__("_OBS") == False:
+            for file in folders[2]:
+                if file.__contains__('md5hashMap.txt') == False:
+                    edit = True
+                    for ext in isntEditable:               
+                        if file.endswith(ext):
+                            edit = False
+                    if edit == True:
+                        fileLoc = folders[0] + "\\" + file
+                        curBUpFiles.append(fileLoc.removeprefix(bUpDir))
 
 
     # Run md5 hashing on editable files
@@ -219,22 +233,27 @@ def sync(dir, bUpDir):
             return True
         
         # Compare bytes of files, if same return true, if dif return false
-        # Stop immediatly when difference is found
-        
+        # Stop immediately when difference is found
 
-    if toBUp == curBUpFiles:        
+    # for i in range(len(curBUpFiles)):
+
+    def createHashMap():
+        print("hashing selected")
+
+    if toBUp == curBUpFiles:
         toUpdate = []
         #type of compare
-        compType = 'binary'
-        if compType == 'binary':            
+        if compType == 'Binary Compare':   
+
             for i in range(len(toBUp)):
             #if (i <20):
-                percentage = str(round((i/len(toBUp)) * 100, 1))
-                print(percentage +"% checked", end = '    \r')
+                percentage = str(round((i/len(toBUp)) * 100, 1))                
                 if binaryComp(dir+toBUp[i],bUpDir+curBUpFiles[i]):
                     toUpdate.append(toBUp[i])
+                print(percentage +"% checked, " + str(len(toUpdate))+ " files to be updated.", end = '    \r')
 
-        elif compType == 'hash':
+
+        elif compType == 'md5 hashing':
             for i in range(len(toBUp)):
                 percentage = str(round((i/len(toBUp)) * 100, 1))
                 print(percentage +"% checked", end = '    \r')
@@ -245,11 +264,60 @@ def sync(dir, bUpDir):
                 if toBHash != curHash:
                     toUpdate.append(toBUp[i])
 
+        elif compType == 'md5 hashMap':
+            if os.path.exists(dir+"\\md5hashMap.txt"):
+                os.remove(dir+"\\md5hashMap.txt")
+            toBUpMap = open(dir+"\\md5hashMap.txt",'w')
+            for i in range(len(toBUp)):
+                percentage = str(round((i/len(toBUp)) * 100, 1))
+                print(percentage +"% checked", end = '    \r')
+                toBHash = md5sum(dir + toBUp[i])
+                toBUpMap.write(toBUp[i]+"|*|"+toBHash+"\n")
+            toBUpMap.close()
+
+            if os.path.exists(bUpDir+"\\md5hashMap.txt"):
+                bUpMap = open(bUpDir+"\\md5hashMap.txt")
+                content=bUpMap.read()
+                bUpMap.close()
+            else:
+                bUpMap = open(bUpDir+"\\md5hashMap.txt",'w')
+                for i in range(len(toBUp)):
+                    percentage = str(round((i/len(toBUp)) * 100, 1))
+                    print(percentage +"% checked", end = '    \r')
+                    curHash = md5sum(bUpDir + toBUp[i])
+                    bUpMap.write(toBUp[i]+"|*|"+curHash+"\n")
+                bUpMap.close()
+
+            if binaryComp(dir+"\\md5hashMap.txt",bUpDir+"\\md5hashMap.txt"):
+                bUpMapOpen = open(bUpDir+"\\md5hashMap.txt")
+                toBUpMapOpen = open(dir+"\\md5hashMap.txt")
+
+                bUpMap = bUpMapOpen.read().split("\n")
+                toBUpMap = toBUpMapOpen.read().split("\n")
+
+                bUpMapOpen.close()
+                toBUpMapOpen.close()
+
+                for file in toBUpMap:
+                    fileFound = False
+                    for bUpFile in bUpMap:
+                        if bUpFile == file:
+                            fileFound = True
+                            break
+                    if fileFound == False:
+                        # print(file.split("|*|")[0])
+                        toUpdate.append(file.split("|*|")[0])
+            else:
+                print("Hash Tables are the same")           
+
         if len(toUpdate) > 0:
             for file in toUpdate:
                 moveToObs(file)
                 shutil.copy(dir + file, bUpDir + file)
                 print("Updated " + file)
             print("All files updated")
+            if compType == 'md5 hashMap':
+                os.remove(bUpDir+"\\md5hashMap.txt")
+                shutil.copy(dir+"\\md5hashMap.txt", bUpDir+"\\md5hashMap.txt")
         else:
             print("No file updates required")

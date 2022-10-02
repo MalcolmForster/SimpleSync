@@ -7,9 +7,9 @@ import SSengine
 
 # This program will compare two sets of file lists and copy the difference over to the backup folder
 # Will then compare hashes of files which are the same in both lists to see if anything has changed recently
-# If difference detected it will move the old version to an obsolete folder and copy the new verison over
+# If difference detected it will move the old version to an obsolete folder and copy the new version over
 
-# Tkinter GUI initilisation
+# Tkinter GUI initialization
 
 txtP = 5 #padding for text used in tkinter
 frameP = 5 #padding for framing in tkinter
@@ -88,16 +88,16 @@ def openJob():
 # Buttons for Frame Submit to start, stop, open, alter and save jobs and other options
 
 n = tk.StringVar()
-fileComp = ttk.Combobox(frameSettings, width = 27, state="readonly", textvariable = n) #<-----------Needs to be activated--------------
-fileComp['values'] = ('Binary Compare (Default)', 'Time last edited', 'md5 hashing')
-fileComp.current(0)
+fileComp = ttk.Combobox(frameSettings, width = 27, state="readonly", textvariable = n) #<-----------Needs to be activated--------------`
+fileComp['values'] = ('Binary Compare', 'Time last edited', 'md5 hashing', 'md5 hashMap')
+fileComp.current(3)
 
 fileTypeButton = tk.Button(frameSettings, text="File types to compare") #<----------Add seperate window to be opened where file extensions can be added, add choice to allow for date only checking for certain files
 
 addButton = tk.Button(frameSettings, text="Add folder pair")
 clearButton = tk.Button(frameSettings, text="Clear folder pairs")
 
-syncButton = tk.Button(frameSubmit, text="Sync Start", command= lambda:SSengine.sync(workLocText.get(), recLocText.get()))
+syncButton = tk.Button(frameSubmit, text="Sync Start", command= lambda:SSengine.sync(workLocText.get(), recLocText.get(), fileComp.get()))
 stopButton = tk.Button(frameSubmit, text="Sync Stop")
 openButton = tk.Button(frameSubmit, text="Load sync job", command=lambda:openJob())
 saveButton = tk.Button(frameSubmit, text="Save sync job")
